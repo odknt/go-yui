@@ -1,6 +1,7 @@
 package yuicompressor
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 	"os"
@@ -8,7 +9,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"bytes"
 )
 
 type OutputFileError struct {
@@ -20,47 +20,46 @@ func (e OutputFileError) Error() string {
 }
 
 type YuiCompressorInput struct {
-	reader 		io.Reader
-	filepath 	string
+	reader   io.Reader
+	filepath string
 }
 
 type YuiCompressorOutput struct {
-	writer 		io.Writer
-	filepath	string
-	isFile		bool
+	writer   io.Writer
+	filepath string
+	isFile   bool
 }
 
 type YuiCompressor struct {
 	command   []string
 	options   map[string]string
-	fromJSCSS	bool
-	input 		YuiCompressorInput
-	output 		YuiCompressorOutput
+	fromJSCSS bool
+	input     YuiCompressorInput
+	output    YuiCompressorOutput
 }
 
 func NewYuiCompressor() *YuiCompressor {
 	return &YuiCompressor{options: make(map[string]string)}
 }
 
-
-func (yuicomp *YuiCompressor) MinifyCss() (*YuiCompressor) {
+func (yuicomp *YuiCompressor) MinifyCss() *YuiCompressor {
 	yuicomp.fromJSCSS = false
 	return yuicomp
 }
 
-func (yuicomp *YuiCompressor) MinifyJs() (*YuiCompressor) {
+func (yuicomp *YuiCompressor) MinifyJs() *YuiCompressor {
 	yuicomp.fromJSCSS = true
 	return yuicomp
 }
 
-func (yuicomp *YuiCompressor) FromFile(filename string) (*YuiCompressor) {
+func (yuicomp *YuiCompressor) FromFile(filename string) *YuiCompressor {
 	file, _ := os.Open(filename)
 	yuicomp.input = YuiCompressorInput{file, filename}
-	return yuicomp	
+	return yuicomp
 }
 
 //TODO: Instead of using a temporary file, use stdin
-func (yuicomp *YuiCompressor) FromString(str string) (*YuiCompressor) {
+func (yuicomp *YuiCompressor) FromString(str string) *YuiCompressor {
 	tmpfile := createTmpfile()
 	readerAsFile(strings.NewReader(str), tmpfile)
 	yuicomp.input = YuiCompressorInput{tmpfile, tmpfile.Name()}
@@ -68,7 +67,7 @@ func (yuicomp *YuiCompressor) FromString(str string) (*YuiCompressor) {
 }
 
 //TODO: Instead of using a temporary file, use stdin
-func (yuicomp *YuiCompressor) FromReader(reader io.Reader) (*YuiCompressor) {
+func (yuicomp *YuiCompressor) FromReader(reader io.Reader) *YuiCompressor {
 	tmpfile := createTmpfile()
 	readerAsFile(reader, tmpfile)
 	yuicomp.input = YuiCompressorInput{tmpfile, tmpfile.Name()}
@@ -93,7 +92,7 @@ func (yuicomp *YuiCompressor) ToFile(filepath string) (string, error) {
 	return yuicomp.output.filepath, nil
 }
 
-func (yuicomp *YuiCompressor) minify() (*YuiCompressor) {
+func (yuicomp *YuiCompressor) minify() *YuiCompressor {
 	if yuicomp.fromJSCSS == true {
 		yuicomp.minifyJs(yuicomp.input, yuicomp.output)
 	} else {
@@ -129,7 +128,7 @@ func (yuicomp *YuiCompressor) minifyCss(input YuiCompressorInput, output YuiComp
 		stdout, _ := cmd.StdoutPipe()
 		cmd.Start() // Havn't catched yet
 		io.Copy(output.writer, stdout)
-	}	
+	}
 }
 
 func (yuicomp *YuiCompressor) Options(options map[string]string) *YuiCompressor {
