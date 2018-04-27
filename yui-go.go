@@ -25,9 +25,8 @@ type YuiCompressorInput struct {
 }
 
 type YuiCompressorOutput struct {
-	writer   io.Writer
-	filepath string
-	isFile   bool
+	writer io.Writer
+	isFile bool
 }
 
 type YuiCompressor struct {
@@ -77,7 +76,7 @@ func (yuicomp *YuiCompressor) FromReader(reader io.Reader) *YuiCompressor {
 func (yuicomp *YuiCompressor) ToString() (string, error) {
 	var output string
 	bufferstr := bytes.NewBufferString(output)
-	yuicomp.output = YuiCompressorOutput{bufferstr, "", false}
+	yuicomp.output = YuiCompressorOutput{bufferstr, false}
 	yuicomp.minify()
 	return bufferstr.String(), nil
 }
@@ -87,9 +86,10 @@ func (yuicomp *YuiCompressor) ToFile(filepath string) (string, error) {
 	if err != nil {
 		return "", OutputFileError{filepath}
 	}
-	yuicomp.output = YuiCompressorOutput{nil, file.Name(), true}
+	defer file.Close()
+	yuicomp.output = YuiCompressorOutput{file, true}
 	yuicomp.minify()
-	return yuicomp.output.filepath, nil
+	return filepath, nil
 }
 
 func (yuicomp *YuiCompressor) minify() *YuiCompressor {
@@ -103,32 +103,25 @@ func (yuicomp *YuiCompressor) minify() *YuiCompressor {
 
 func (yuicomp *YuiCompressor) minifyJs(input YuiCompressorInput, output YuiCompressorOutput) {
 	yuicomp.generateFullCommand()
-	if output.isFile == true {
-		command_array := append(yuicomp.command, "--type", "js", "--nomunge", input.filepath, "-o", output.filepath)
-		cmd := exec.Command(command_array[0], command_array[1:]...)
-		cmd.Run() // Havn't catched yet
-	} else {
-		command_array := append(yuicomp.command, "--type", "js", "--nomunge", input.filepath)
-		cmd := exec.Command(command_array[0], command_array[1:]...)
-		stdout, _ := cmd.StdoutPipe()
-		cmd.Start() // Havn't catched yet
-		io.Copy(output.writer, stdout)
+	jsoptions := []string{"--type", "js"}
+	jsoption := yuicomp.options["jsoption"]
+	if jsoption != "" {
+		jsoptions = append(jsoptions, strings.Split(jsoption, " ")...)
 	}
+	command_array := append(yuicomp.command, jsoptions...)
+	cmd := exec.Command(command_array[0], command_array[1:]...)
+	stdout, _ := cmd.StdoutPipe()
+	cmd.Start() // Havn't catched yet
+	io.Copy(output.writer, stdout)
 }
 
 func (yuicomp *YuiCompressor) minifyCss(input YuiCompressorInput, output YuiCompressorOutput) {
 	yuicomp.generateFullCommand()
-	if output.isFile == true {
-		command_array := append(yuicomp.command, "--type", "css", input.filepath, "-o", output.filepath)
-		cmd := exec.Command(command_array[0], command_array[1:]...)
-		cmd.Run() // Havn't catched yet
-	} else {
-		command_array := append(yuicomp.command, "--type", "css", input.filepath)
-		cmd := exec.Command(command_array[0], command_array[1:]...)
-		stdout, _ := cmd.StdoutPipe()
-		cmd.Start() // Havn't catched yet
-		io.Copy(output.writer, stdout)
-	}
+	command_array := append(yuicomp.command, "--type", "css", input.filepath)
+	cmd := exec.Command(command_array[0], command_array[1:]...)
+	stdout, _ := cmd.StdoutPipe()
+	cmd.Start() // Havn't catched yet
+	io.Copy(output.writer, stdout)
 }
 
 func (yuicomp *YuiCompressor) Options(options map[string]string) *YuiCompressor {
@@ -136,6 +129,7 @@ func (yuicomp *YuiCompressor) Options(options map[string]string) *YuiCompressor 
 		yuicomp.useParameters(options, "javapath")
 		yuicomp.useParameters(options, "jarpath")
 		yuicomp.useParameters(options, "jvmparams")
+		yuicomp.useParameters(options, "jsoption")
 	}
 	return yuicomp
 }
